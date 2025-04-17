@@ -56,25 +56,25 @@ class AirbnbReservationPage(BasePage):
 
     def scroll_to_reservation_box(self):
         """
-        Gradually scrolls down until the reservation box becomes visible.
-        Takes a screenshot after scrolling for debugging.
+        Aggressively scrolls down until the reservation box becomes visible.
+        Scrolls deeply to ensure even the total price is loaded.
         """
         self.close_popup_if_exists()
-        self.page.wait_for_timeout(2000)
+        self.page.wait_for_timeout(1500)
 
         try:
-            for _ in range(20):  # Try scrolling up to 20 times
+            for _ in range(100):  # Try scrolling 100 times
                 if self.reservation_box.is_visible(timeout=1000):
                     print("✅ Reservation box is now visible!")
-                    # Extra wait to ensure box contents fully load
-                    self.page.wait_for_timeout(2000)
+                    self.page.wait_for_timeout(2000)  # Extra wait for box content to load
                     self.page.screenshot(path="after_scroll.png", full_page=True)
                     return
 
-                self.page.mouse.wheel(0, 600)  # Scroll down
-                self.page.wait_for_timeout(500)
+                self.page.mouse.wheel(0, 10000)  # Scroll much deeper
+                self.page.wait_for_timeout(1500)  # Wait longer after each scroll
 
             raise AssertionError("❌ Could not find the reservation box after scrolling.")
+
         except Exception as e:
             raise AssertionError(f"❌ Failed to scroll to reservation box: {e}")
 
@@ -90,6 +90,23 @@ class AirbnbReservationPage(BasePage):
             else:
                 return "Not Available"
         except Exception:
+            return "Not Available"
+
+    def get_total_price(self) -> str:
+        """
+        Fetches only the 'Total Price' from the reservation box.
+        Returns:
+            str: Total price text, or 'Not Available' if not found.
+        """
+        try:
+            total_price_locator = self.page.locator('div._1avmy66 span._1qs94rc span._j1kt73')
+            total_price_locator.wait_for(state="visible", timeout=5000)
+
+            price_text = total_price_locator.inner_text()
+            return " ".join(price_text.split())
+
+        except Exception as e:
+            print(f"Failed to fetch total price: {e}")
             return "Not Available"
 
     def save_reservation_details(self) -> dict:
@@ -109,10 +126,9 @@ class AirbnbReservationPage(BasePage):
             self.page.locator('[data-plugin-in-point-id="BOOK_IT_SIDEBAR"]').wait_for(state="visible", timeout=10000)
 
             # Extract values carefully
-            details['price_per_night'] = self._safe_get_text('div._zo8nmn span._hb913q')  # מחיר ללילה
-            details['total_price'] = self._safe_get_text('div._1avmy66 span._j1kt73')  # מחיר כולל
-
-            details['guests'] = self._safe_get_text('div#GuestPicker-book_it-trigger span._j1kt73')  # כמות אורחים
+            details['price_per_night'] = self._safe_get_text('[data-plugin-in-point-id="BOOK_IT_SIDEBAR"] span._4dhrua')
+            details['total_price'] = self._safe_get_text('(//span[contains(@class,"_j1kt73")])[last()]')
+            details['guests'] = self._safe_get_text('div#GuestPicker-book_it-trigger span._j1kt73')
             details['check_in'] = self._safe_get_text('[data-testid="change-dates-checkIn"]')
             details['check_out'] = self._safe_get_text('[data-testid="change-dates-checkOut"]')
 
