@@ -6,20 +6,21 @@
 #
 #
 # @pytest.mark.parametrize("location, check_in, check_out, guests", [
-#     ("Tel Aviv", "2025-04-17", "2025-04-20", {"adults": 2})
+#     ("Tel Aviv", "2025-04-19", "2025-04-20", {"adults": 2})
 # ])
 # def test_airbnb_search_and_analyze(page, location, check_in, check_out, guests):
 #     # Arrange
 #     airbnb = AirbnbPage(page)
+#     analyzer = ApiResultsAnalyzer(page)
+#
+#     # Step 1: Search for apartments
 #     airbnb.go_to_homepage()
+#     analyzer.start_capture_api_request()
 #
 #     airbnb.enter_location(location)
-#     validate_date_logic(check_in, check_out)
+#     # validate_date_logic(check_in, check_out)
 #     airbnb.select_dates(check_in, check_out)
 #     airbnb.select_guests(**guests)
-#
-#     analyzer = ApiResultsAnalyzer(page)
-#     analyzer.start_capture_api_request()
 #
 #     # Act
 #     airbnb.search()

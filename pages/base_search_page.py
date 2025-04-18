@@ -20,15 +20,16 @@ class BaseSearchPage(BasePage):
 
     def go_to_homepage(self):
         self.navigate("https://www.airbnb.com/")
-        self.page.wait_for_load_state("networkidle")
+        # self.page.wait_for_load_state("networkidle")
 
     def enter_location(self, city: str):
+        self.page.wait_for_selector('[data-testid="structured-search-input-field-query"]')  # Extra wait for content to load
+        self.page.wait_for_timeout(2000)
         self.click(self.location_input)
         self.fill(self.location_input, city)
 
         options = self.page.locator('div[role="option"]')
         options.first.wait_for(state="visible", timeout=5000)
-
         matched = options.filter(has_text=city)
 
         try:

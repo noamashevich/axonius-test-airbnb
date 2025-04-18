@@ -1,6 +1,9 @@
+import re
+
 from pages.base_page import BasePage
 from playwright.sync_api import Page
 import os
+
 
 class AirbnbReservationPage(BasePage):
     def __init__(self, page: Page):
@@ -45,9 +48,12 @@ class AirbnbReservationPage(BasePage):
     def close_popup_if_exists(self):
         """
         Tries to close any popup (like login/signup) that appears.
+
         """
+
+        self.page.wait_for_timeout(3000)  # Extra wait for box content to load
         try:
-            popup_close = self.page.locator('[aria-label="Close"]')
+            popup_close = self.page.locator('button[aria-label="Close"]')
             if popup_close.is_visible(timeout=3000):
                 popup_close.click()
                 self.page.wait_for_timeout(500)
@@ -60,37 +66,20 @@ class AirbnbReservationPage(BasePage):
         Scrolls deeply to ensure even the total price is loaded.
         """
         self.close_popup_if_exists()
-        self.page.wait_for_timeout(1500)
-
         try:
             for _ in range(100):  # Try scrolling 100 times
-                if self.reservation_box.is_visible(timeout=1000):
-                    print("✅ Reservation box is now visible!")
-                    self.page.wait_for_timeout(2000)  # Extra wait for box content to load
-                    self.page.screenshot(path="after_scroll.png", full_page=True)
+                if self.reservation_box.is_visible(timeout=4000):
+                    print("Reservation box is now visible!")
+                    # self.page.wait_for_timeout(2000)  # Extra wait for box content to load
                     return
 
                 self.page.mouse.wheel(0, 10000)  # Scroll much deeper
                 self.page.wait_for_timeout(1500)  # Wait longer after each scroll
 
-            raise AssertionError("❌ Could not find the reservation box after scrolling.")
+            raise AssertionError("Could not find the reservation box after scrolling.")
 
         except Exception as e:
-            raise AssertionError(f"❌ Failed to scroll to reservation box: {e}")
-
-    def _safe_get_text(self, selector: str) -> str:
-        """
-        Safely gets text from a selector, returns 'Not Available' if not found.
-        """
-        try:
-            element = self.page.locator(selector)
-            if element.is_visible(timeout=3000):
-                text = element.inner_text()
-                return " ".join(text.split())  # Normalize spaces
-            else:
-                return "Not Available"
-        except Exception:
-            return "Not Available"
+            raise AssertionError(f"Failed to scroll to reservation box: {e}")
 
     def get_total_price(self) -> str:
         """
@@ -109,45 +98,88 @@ class AirbnbReservationPage(BasePage):
             print(f"Failed to fetch total price: {e}")
             return "Not Available"
 
-    def save_reservation_details(self) -> dict:
+    def extract_reservation_box_data_with_scroll(self) -> dict:
         """
-        After navigating and scrolling, extract reservation details like price, guests, check-in, and check-out.
+        Scrolls to the reservation box and extracts reservation details using pure CSS selectors.
+        Returns: dict: Reservation data including price per night, total price, guests, check-in, check-out.
         """
-        # Close any popups if exist
-        self.close_popup_if_exists()
-
-        # Scroll to the reservation section
-        self.scroll_to_reservation_box()
-
         try:
-            details = {}
+            self.close_popup_if_exists()
+            self.scroll_to_reservation_box()
 
-            # Wait for the reservation box to appear
-            self.page.locator('[data-plugin-in-point-id="BOOK_IT_SIDEBAR"]').wait_for(state="visible", timeout=10000)
+            selectors = {
+                "price_per_night": 'span._hb913q',
+                "guests": 'div#GuestPicker-book_it-trigger span._j1kt73',
+                "check_in": '[data-testid="change-dates-checkIn"]',
+                "check_out": '[data-testid="change-dates-checkOut"]'
+            }
 
-            # Extract values carefully
-            details['price_per_night'] = self._safe_get_text('[data-plugin-in-point-id="BOOK_IT_SIDEBAR"] span._4dhrua')
-            details['total_price'] = self._safe_get_text('(//span[contains(@class,"_j1kt73")])[last()]')
-            details['guests'] = self._safe_get_text('div#GuestPicker-book_it-trigger span._j1kt73')
-            details['check_in'] = self._safe_get_text('[data-testid="change-dates-checkIn"]')
-            details['check_out'] = self._safe_get_text('[data-testid="change-dates-checkOut"]')
+            data = {}
 
-            return details
+            def get_total_price_element(page):
+                # Try to find the second element with _j1kt73
+                elements = page.locator('span._j1kt73')
+                count = elements.count()
+
+                if count >= 2:
+                    # If second exists, return it
+                    return elements.nth(1).inner_text()
+                else:
+                    # Else, fallback to the first _1vk118j element
+                    fallback = page.locator('div._1vk118j').first.inner_text()
+                    return fallback
+
+            def extract_price_only(text: str) -> str:
+                """
+                Extracts the first price (with currency symbol) from a text.
+                Supports multiple currencies: ₪, $, €, £, etc.
+                """
+                match = re.search(r'[₪$€£]\s?\d{1,3}(?:,\d{3})*(?:\.\d{2})?', text)
+                if match:
+                    return match.group().replace(' ', '')
+                return "Not Available"
+
+            for key, selector in selectors.items():
+                locator = self.page.locator(selector)
+                try:
+                    locator.scroll_into_view_if_needed()
+                    locator.wait_for(state="visible", timeout=8000)
+
+                    text = locator.inner_text()
+                    # Cleaning &nbsp;
+                    clean_text = " ".join(text.replace("\xa0", " ").split())
+                    data[key] = clean_text
+
+                except Exception as e:
+                    print(f"Failed to extract {key}: {e}")
+                    data[key] = "Not Available"
+
+            total_price = get_total_price_element(self.page)
+            price = extract_price_only(total_price)
+            data["total_price"] = price
+            return data
 
         except Exception as e:
-            raise AssertionError(f"Failed to extract reservation details: {e}")
+            raise AssertionError(f"Failed to extract reservation box data: {e}")
 
-    def print_reservation_details(self, details: dict):
+    def click_to_reserve_button(self):
         """
-        Pretty-prints the reservation details.
+        Clicking the reserve button
+        :return:
         """
-        print("\nReservation Details:")
-        print("-" * 50)
-        for key, value in details.items():
-            key_pretty = key.replace("_", " ").capitalize()
-            if not value or value == "Not Available":
-                value = "Not Available"
-            if isinstance(value, str):
-                value = " ".join(value.split())
-            print(f"{key_pretty:<20}: {value}")
-        print("-" * 50)
+        self.page.evaluate(
+            """({selector, index}) => document.querySelectorAll(selector)[index].click()""",
+            {"selector": '[data-testid="homes-pdp-cta-btn"]', "index": 1}
+        )
+
+        self.page.wait_for_timeout(4000)
+
+    def fill_reservation_details(self):
+        country_select = self.page.locator('[data-testid="login-signup-countrycode"]')
+        country_select.click()
+        self.page.select_option('#country', value='93AF')
+        self.page.wait_for_timeout(5000)
+
+        self.page.fill('input[name="phoneInputphone-login"]', '0542341121')
+        self.page.wait_for_timeout(5000)
+

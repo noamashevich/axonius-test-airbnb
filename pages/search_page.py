@@ -1,7 +1,7 @@
 import re
 import urllib.parse
 import difflib
-from pages.base_search_page import BaseSearchPage  # שם חדש למחלקת בסיס
+from pages.base_search_page import BaseSearchPage
 
 class AirbnbPage(BaseSearchPage):
     def __init__(self, page):

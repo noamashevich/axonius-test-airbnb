@@ -18,4 +18,6 @@ def validate_date_logic(check_in: str, check_out: str):
     """
     check_in_date = datetime.strptime(check_in, "%Y-%m-%d")
     check_out_date = datetime.strptime(check_out, "%Y-%m-%d")
-    assert check_out_date > check_in_date, f"Check-out date ({check_out}) must be later than check-in date ({check_in})"
+    today = datetime.today()
+    formatted_date = today.strftime("%Y-%m-%d")
+    assert check_out_date > check_in_date and check_in >= formatted_date, f"Check-out date ({check_out}) must be later than check-in date ({check_in})"
