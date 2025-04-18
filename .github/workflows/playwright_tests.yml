@@ -29,6 +29,9 @@ jobs:
     - name: Set PYTHONPATH
       run: echo "PYTHONPATH=$PWD" >> $GITHUB_ENV
 
+    - name: Create test-results folder
+      run: mkdir -p test-results
+
     - name: Run tests
       run: |
         pytest --html=test-results/report.html
