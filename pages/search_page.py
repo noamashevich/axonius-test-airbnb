@@ -24,7 +24,6 @@ class AirbnbPage(BaseSearchPage):
         Args: expected (dict): A dictionary like {"location": "Tel Aviv", "adults": 2}
         """
         url = urllib.parse.unquote(self.page.url.lower())
-
         if "location" in expected:
             exp = self._slug(expected["location"])
             m = re.search(r"/s/([\w~\-]+)/homes", url)

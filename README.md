@@ -1,25 +1,43 @@
+Please run: pytest -s --headed --browser=chromium   | on the terminal
 
 🧠 How It Works:
 
+Test 1: Full Reservation Flow
 Open Airbnb homepage.
 
 Enter location, dates, guests.
 
 Validate that the URL matches the parameters.
 
-Capture API call StaysSearch.
+Capture backend API call (StaysSearch).
 
-Parse backend API and find the highest-rated apartment.
+Parse API and find the highest-rated apartment.
 
-Open that apartment's listing (even without clicking).
+Open the apartment's listing directly.
 
-Close annoying popups if needed.
+Handle and close popups if needed.
 
-Scroll smoothly down to reservation section.
+Scroll to the reservation box.
 
-Extract details like price, guests, dates.
+Extract reservation details like price, guests, dates.
 
 Click "Reserve" and validate reservation consistency.
+
+Test 2: Search and Analyze
+Search apartments based on location, dates, guests.
+
+Validate the search URL reflects the criteria.
+
+Capture backend StaysSearch API call.
+
+Find and log:
+
+The cheapest apartment
+
+The highest-rated apartment
+
+Ensure results exist and are valid.
+
 
 📋 Example Output
 bash
@@ -64,6 +82,7 @@ Install Playwright Browsers	playwright install
 Run tests normally	pytest
 Run tests visible (headed)	pytest --headed
 Run only a single test	pytest tests/test_airbnb_reservation.py::test_airbnb_reservation_flow
+
 ✍️ Author
 Noa Mashevich
 Automation Engineer | Python Developer 
